@@ -1,0 +1,38 @@
+import re
+
+# Open the syslog file for reading
+with open('/var/log/syslog', 'r') as f:
+
+    # Define a regular expression pattern to match the facility in each log entry
+    pattern = r'(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+(\w+)\['
+
+    # Create a dictionary to store the count of each facility
+    facility_count = {}
+
+    # Read each line in the syslog file
+    for line in f:
+
+        # Search the line for a match to the facility pattern
+        match = re.search(pattern, line)
+
+        # If a match is found, increment the count for the facility in the dictionary
+        if match:
+            facility = match.group(2)
+            if facility in facility_count:
+                facility_count[facility] += 1
+            else:
+                facility_count[facility] = 1
+
+    # Print the results
+    print('Facility Counts:')
+    for facility, count in sorted(facility_count.items(), key=lambda x: x[1], reverse=True):
+        print(f'{facility}: {count}')
+
+    # Check for potential security concerns
+    print('\nPotential Security Concerns:')
+    if 'sudo' in facility_count:
+        print(' - sudo was used')
+    if 'auth' in facility_count:
+        print(' - authentication failure occurred')
+    if 'fail2ban' in facility_count:
+        print(' - fail2ban blocked an IP address')
