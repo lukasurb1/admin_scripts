@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Set the destination directory
+backup_dir="insert destination here"
+
+# Set list of files and directories you'd like backed up
+backup_files="/home /etc /var/log"
+
+# File name for the backup archive
+backup_name="backup-$(date +%Y-%m-%d-%H%M%S).tar.gz"
+
+# Remote server information
+remote_user="user"
+remote_host="remote.server.com"
+remote_dir="/backup"
+
+# Backup archive creation
+tar -czf "$backup_dir/$backup_name" $backup_files
+
+# Send backup archive to the remote server using scp
+scp "$backup_dir/$backup_name" "$remote_user@$remote_host:$remote_dir"
+
+# Message that the process was a success 
+echo "Backup of $backup_files completed at $(date +%Y-%m-%d-%H:%M:%S)."
+echo "Backup transferred to $remote_host:$remote_dir at $(date +%Y-%m-%d-%H:%M:%S)."
