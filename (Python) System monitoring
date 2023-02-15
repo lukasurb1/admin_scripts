@@ -1,0 +1,58 @@
+import os
+import smtplib
+import subprocess
+
+# Define the email configuration
+smtp_server = 'smtp.gmail.com'
+smtp_port = 587
+smtp_username = 'your-email-address@gmail.com'
+smtp_password = 'your-email-password'
+recipient_email = 'recipient-email-address@gmail.com'
+sender_email = smtp_username
+
+# Define the thresholds for each metric
+cpu_threshold = 80
+mem_threshold = 80
+disk_threshold = 80
+
+# Check CPU usage
+def check_cpu():
+    output = subprocess.check_output(['top', '-bn1']).decode('utf-8')
+    cpu_usage = float(output.split('Cpu(s):')[1].split('%')[0].strip())
+    if cpu_usage > cpu_threshold:
+        send_email('High CPU Usage Alert', f'CPU usage is at {cpu_usage}%. Action required.')
+    
+# Check memory usage
+def check_mem():
+    output = subprocess.check_output(['free', '-m']).decode('utf-8')
+    total_mem, used_mem = [int(x) for x in output.split('\n')[1].split()[1:3]]
+    mem_usage = used_mem / total_mem * 100
+    if mem_usage > mem_threshold:
+        send_email('High Memory Usage Alert', f'Memory usage is at {mem_usage}%. Action required.')
+    
+# Check disk usage
+def check_disk():
+    output = subprocess.check_output(['df', '-h']).decode('utf-8')
+    for line in output.split('\n'):
+        if line.startswith('/dev/'):
+            device, size, used, available, percent, mountpoint = line.split()
+            disk_usage = int(percent[:-1])
+            if disk_usage > disk_threshold:
+                send_email('High Disk Usage Alert', f'Disk usage is at {disk_usage}%. Action required on {mountpoint}.')
+
+# Send email
+def send_email(subject, body):
+    message = f'Subject: {subject}\n\n{body}'
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(sender_email, recipient_email, message)
+
+# Main function to check resources
+def main():
+    check_cpu()
+    check_mem()
+    check_disk()
+
+if __name__ == '__main__':
+    main()
