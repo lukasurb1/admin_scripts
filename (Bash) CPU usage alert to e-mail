@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# CPU usage threshold in percentage
+threshold=90
+
+# Current CPU usage
+cpu_usage=$(top -b -n 1 | grep "Cpu(s)" | awk '{print $2 + $4}')
+
+# Get date and time
+timestamp=$(date +"%Y-%m-%d %T")
+
+# Check if usage goes over set limit
+if (( $(echo "$cpu_usage > $threshold" | bc -l) )); then
+    # Get the list of processes consuming the most CPU resources
+    processes=$(ps -eo pid,user,cmd,%cpu --sort=-%cpu | head -n 6)
+
+    # Get the system load average for the past 1, 5, and 15 minutes
+    loadavg=$(uptime | awk '{print $10 " " $11 " " $12}')
+
+    # Get the amount of free memory and swap space
+    meminfo=$(free -m | grep -E 'Mem|Swap')
+
+    # Send an email alert with detailed system information
+    echo "High CPU usage detected at $timestamp!
+
+CPU usage is currently at $cpu_usage%.
+
+Processes consuming the most CPU resources:
+$processes
+
+System load average (1, 5, 15 minutes): $loadavg
+
+Memory and swap usage:
+$meminfo" | mail -s "High CPU Usage Alert" your_email@example.com
+fi
