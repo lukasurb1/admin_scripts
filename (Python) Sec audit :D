@@ -1,0 +1,78 @@
+import os
+import subprocess
+import smtplib
+import socket
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+# Email configuration
+smtp_server = 'smtp.gmail.com'
+smtp_port = 587
+smtp_username = 'youremail@gmail.com'
+smtp_password = 'yourpassword'
+email_from = 'youremail@gmail.com'
+email_to = 'recipientemail@example.com'
+email_subject = 'Security Audit Report'
+
+# Check if the system is up-to-date
+print('Checking for available updates...')
+os.system('sudo apt-get update > /dev/null')
+result = subprocess.run(['sudo', 'apt-get', '-s', 'dist-upgrade'], stdout=subprocess.PIPE)
+if '0 upgraded, 0 newly installed' not in result.stdout.decode('utf-8'):
+    print('WARNING: System has available updates')
+
+# Check for rootkits
+print('Checking for rootkits...')
+os.system('sudo rkhunter --update')
+result = os.system('sudo rkhunter --check')
+if result != 0:
+    print('WARNING: Rootkit found')
+
+# Check for open ports
+print('Checking for open ports...')
+result = subprocess.run(['sudo', 'netstat', '-tuln'], stdout=subprocess.PIPE)
+if 'LISTEN' in result.stdout.decode('utf-8'):
+    print('WARNING: Open ports found')
+
+# Check for weak passwords
+print('Checking for weak passwords...')
+password_file = '/etc/passwd'
+with open(password_file) as f:
+    for line in f:
+        user_info = line.split(':')
+        username = user_info[0]
+        password_hash = user_info[1]
+        if password_hash.startswith('$6$') and len(password_hash) < 90:
+            print(f'WARNING: Weak password for user {username}')
+
+# Check for unauthorized SSH access attempts
+print('Checking for unauthorized SSH access attempts...')
+result = subprocess.run(['sudo', 'grep', 'Failed password', '/var/log/auth.log'], stdout=subprocess.PIPE)
+if result.stdout.decode('utf-8'):
+    print('WARNING: Unauthorized SSH access attempts found')
+
+# Send email report
+report = 'Security Audit Report:\n\n'
+if 'WARNING' in report:
+    report += 'Security concerns were found during the audit. Please review the details below:\n\n'
+else:
+    report += 'No security concerns were found during the audit.\n\n'
+report += 'Update check: ' + ('WARNING' if 'WARNING' in result.stdout.decode('utf-8') else 'OK') + '\n'
+report += 'Rootkit check: ' + ('WARNING' if result != 0 else 'OK') + '\n'
+report += 'Open ports check: ' + ('WARNING' if 'LISTEN' in result.stdout.decode('utf-8') else 'OK') + '\n'
+report += 'Weak passwords check: ' + ('WARNING' if 'WARNING' in report else 'OK') + '\n'
+report += 'Unauthorized SSH access attempts check: ' + ('WARNING' if result.stdout.decode('utf-8') else 'OK') + '\n'
+
+msg = MIMEMultipart()
+msg['From'] = email_from
+msg['To'] = email_to
+msg['Subject'] = email_subject
+msg.attach(MIMEText(report))
+
+smtp_session = smtplib.SMTP(smtp_server, smtp_port)
+smtp_session.ehlo()
+smtp_session.starttls()
+smtp_session.login(smtp_username, smtp_password)
+smtp_session.sendmail(email_from, email_to, msg.as_string())
+smtp_session.quit()
+print('Audit report sent to', email_to)
